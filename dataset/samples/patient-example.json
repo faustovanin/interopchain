@@ -1,0 +1,37 @@
+{
+  "resourceType": "Patient",
+  "id": "example-patient-001",
+  "meta": {
+    "profile": ["http://hl7.org/fhir/StructureDefinition/Patient"]
+  },
+  "text": {
+    "status": "generated",
+    "div": "<div xmlns=\"http://www.w3.org/1999/xhtml\">Synthetic patient for testing purposes.</div>"
+  },
+  "identifier": [
+    {
+      "use": "official",
+      "system": "urn:oid:2.16.840.1.113883.2.4.6.3",
+      "value": "12345678901"
+    }
+  ],
+  "active": true,
+  "name": [
+    {
+      "use": "official",
+      "family": "Doe",
+      "given": ["Jane"]
+    }
+  ],
+  "gender": "female",
+  "birthDate": "1985-06-15",
+  "address": [
+    {
+      "use": "home",
+      "line": ["123 Synthetic Street"],
+      "city": "Testville",
+      "postalCode": "00000-000",
+      "country": "BR"
+    }
+  ]
+}

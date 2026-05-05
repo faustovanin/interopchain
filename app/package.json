@@ -1,0 +1,23 @@
+{
+  "name": "interopchain-app",
+  "version": "1.0.0",
+  "description": "Interopchain web application — user interface for interacting with the Hyperledger Fabric blockchain.",
+  "private": true,
+  "scripts": {
+    "start": "react-scripts start",
+    "build": "react-scripts build",
+    "test": "react-scripts test",
+    "eject": "react-scripts eject"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "keywords": [
+    "hyperledger-fabric",
+    "blockchain",
+    "hl7-fhir",
+    "healthcare",
+    "qr-code"
+  ],
+  "license": "Apache-2.0"
+}

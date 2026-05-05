@@ -1,0 +1,21 @@
+{
+  "name": "interopchain-server",
+  "version": "1.0.0",
+  "description": "Interopchain NodeJS backend server — manages private keys, authentication, and acts as a Hyperledger Fabric gateway.",
+  "main": "src/app.js",
+  "scripts": {
+    "start": "node src/app.js",
+    "dev": "nodemon src/app.js",
+    "test": "jest --forceExit"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "keywords": [
+    "hyperledger-fabric",
+    "blockchain",
+    "hl7-fhir",
+    "healthcare"
+  ],
+  "license": "Apache-2.0"
+}
