@@ -5,7 +5,8 @@ This directory contains the Hyperledger Fabric chaincode (smart contract) source
 ## Overview
 
 Chaincodes implement the business logic that runs on Hyperledger Fabric peers. They are responsible for:
-- Storing and retrieving HL7 FHIR resources on the ledger.
+- Registering HL7 FHIR document records on the ledger (hash + metadata + patient public key).
+- Querying records by patient public key or metadata fields.
 - Enforcing access control policies.
 - Providing an immutable audit trail of all data changes.
 
@@ -13,13 +14,14 @@ Chaincodes implement the business logic that runs on Hyperledger Fabric peers. T
 
 | Directory | Description |
 |---|---|
-| [`fhir-chaincode/`](fhir-chaincode/README.md) | Core chaincode for FHIR resource CRUD operations and access control |
+| [`fhir-chaincode/`](fhir-chaincode/README.md) | Core chaincode for FHIR record registration, updates, and queries |
 
 ## Prerequisites
 
-- Go ≥ 1.21
+- Java 11+
+- Maven ≥ 3.8
 - Hyperledger Fabric peer binary in `$PATH`
-- A running Fabric network (see [`docker/`](../docker/README.md))
+- A running Fabric network with CouchDB state database (see [`docker/`](../docker/README.md))
 
 ## Development Workflow
 
@@ -27,11 +29,11 @@ Chaincodes implement the business logic that runs on Hyperledger Fabric peers. T
 # 1. Navigate to a chaincode directory
 cd chaincodes/fhir-chaincode
 
-# 2. Install Go dependencies
-go mod tidy
+# 2. Run unit tests
+mvn test
 
-# 3. Run unit tests
-go test ./...
+# 3. Build the fat-jar for deployment
+mvn package
 
 # 4. Deploy to the network (from the repo root)
 ./scripts/deploy.sh fhir-chaincode
@@ -39,7 +41,7 @@ go test ./...
 
 ## Coding Conventions
 
-- Each chaincode lives in its own subdirectory with its own `go.mod`.
-- Chaincode functions follow the Fabric Contract API.
+- Each chaincode lives in its own subdirectory with its own `pom.xml`.
+- Chaincode functions follow the Fabric Contract API (`ContractInterface`).
 - All ledger keys follow the pattern `RESOURCE_TYPE~ID` (e.g., `Patient~example-patient-001`).
-- FHIR resources are stored as JSON-serialised strings in the world state.
+- Full FHIR files are **not** stored on-chain; only their SHA-256 hash, metadata, and the patient's public key are persisted.

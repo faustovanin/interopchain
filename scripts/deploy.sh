@@ -28,7 +28,7 @@ deploy_chaincode() {
     echo "==> Packaging chaincode '${cc_name}'..."
     peer lifecycle chaincode package "/tmp/${cc_name}.tar.gz" \
         --path "${cc_path}" \
-        --lang golang \
+        --lang java \
         --label "${cc_name}_1.0"
 
     echo "==> Installing chaincode '${cc_name}'..."

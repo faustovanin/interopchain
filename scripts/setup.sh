@@ -22,6 +22,8 @@ command -v docker compose >/dev/null 2>&1 || { echo "ERROR: docker compose is no
 command -v cryptogen   >/dev/null 2>&1 || { echo "ERROR: cryptogen (Fabric binary) not found in PATH."; exit 1; }
 command -v configtxgen >/dev/null 2>&1 || { echo "ERROR: configtxgen (Fabric binary) not found in PATH."; exit 1; }
 command -v node        >/dev/null 2>&1 || { echo "ERROR: node is not installed."; exit 1; }
+command -v mvn         >/dev/null 2>&1 || { echo "ERROR: mvn (Maven) is not installed."; exit 1; }
+command -v java        >/dev/null 2>&1 || { echo "ERROR: java (JDK 11+) is not installed."; exit 1; }
 
 echo "==> All prerequisites found."
 

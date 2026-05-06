@@ -33,4 +33,5 @@ Run each script from the repository root:
 
 - Docker ≥ 20.10 and Docker Compose ≥ 2.0
 - Hyperledger Fabric binaries (`peer`, `configtxgen`, `cryptogen`) in your `$PATH`
+- Java 11+ and Maven ≥ 3.8 (for chaincode builds)
 - Node.js ≥ 18 LTS
