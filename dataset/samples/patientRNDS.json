@@ -1,0 +1,38 @@
+{
+  "resourceType": "Patient",
+  "id": "patient001",
+  "meta": {
+    "profile": [
+      "https://rnds-fhir.saude.gov.br/StructureDefinition/BRIndividuo-1.0"
+    ]
+  },
+  "extension": [
+    {
+      "url": "https://rnds-fhir.saude.gov.br/StructureDefinition/BRPais-1.0",
+      "valueCodeableConcept": {
+        "coding": [{
+          "system": "https://rnds-fhir.saude.gov.br/CodeSystem/BRPais",
+          "code": "10"
+        }]
+      }
+    }
+  ],
+  "identifier": [{
+    "use": "official",
+    "type": {
+      "coding": [{
+        "system": "http://terminology.hl7.org/CodeSystem/v2-0203",
+        "code": "TAX"
+      }]
+    },
+    "system": "https://rnds-fhir.saude.gov.br/NamingSystem/cpf",
+    "value": "12345678900"
+  }],
+  "active": true,
+  "name": [{
+    "use": "official",
+    "text": "GABRIELA INACIO ALVES"
+  }],
+  "gender": "female",
+  "birthDate": "1976-09-15"
+}

@@ -1,6 +1,6 @@
 # Environment files (may contain secrets)
 .env
-*.env
+.env
 
 # Node.js
 node_modules/
