@@ -1,11 +1,11 @@
 const pool =
     require("../config/database");
 
-exports.getPatientPublicKey = async (patientIdentifier) => {
+exports.getPatientKmsKey = async (patientIdentifier) => {
     const result =
         await pool.query(
             `
-            SELECT public_key
+            SELECT kms_key_id
             FROM patients
             WHERE patient_identifier = $1
             `,
@@ -14,11 +14,11 @@ exports.getPatientPublicKey = async (patientIdentifier) => {
 
     if (result.rows.length === 0) {
         throw new Error(
-            "Chave pública não encontrada"
+            "KMS key ID não encontrado"
         );
     }
 
-    return result.rows[0].public_key;
+    return result.rows[0].kms_key_id;
 }
 
 exports.save = async (

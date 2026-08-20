@@ -1,5 +1,4 @@
-const crypto = require("crypto");
-const { reencryptAesKey } = require("../../shared/crypto");
+const { encryptResource, reencryptAesKey } = require("../../shared/crypto");
 
 const db = require("../../shared/db");
 const { consumer, getProducer } = require("../../shared/kafka");
@@ -76,36 +75,6 @@ function extractGenericMetadata(resource) {
     };
 }
 
-function encryptResource(resource, publicKeyPem) {
-    const aesKey = crypto.randomBytes(32);
-    const nonce = crypto.randomBytes(12);
-
-    const cipher = crypto.createCipheriv(
-        "aes-256-gcm",
-        aesKey,
-        nonce
-    );
-
-    const ciphertext = Buffer.concat([
-        cipher.update(JSON.stringify(resource)),
-        cipher.final()
-    ]);
-
-    const authTag = cipher.getAuthTag();
-
-    const encryptedKey = crypto.publicEncrypt(
-        publicKeyPem,
-        aesKey
-    );
-
-    return {
-        ciphertext: ciphertext.toString("base64"),
-        encryptedKey: encryptedKey.toString("base64"),
-        nonce: nonce.toString("base64"),
-        authTag: authTag.toString("base64")
-    };
-}
-
 async function handleUploadRequested(event) {
     const requestId = event.requestId;
     console.log("Entrou no metadata-crypto service para processar evento RESOURCE_UPLOAD_REQUESTED: " + requestId);
@@ -117,12 +86,12 @@ async function handleUploadRequested(event) {
     const metadataTime = Date.now() - metadataStart;
     console.log("Fim metadata: " + metadataTime);
 
-    const patient = await db.getPatientPublicKey(metadata.patientIdentifier);
+    const patient = await db.getPatientKmsKey(metadata.patientIdentifier);
     console.log("Patient: " + patient.id + " - " + metadata.patientIdentifier);
 
     const encryptStart = Date.now();
     console.log("Início criptografia: " + encryptStart);
-    const encrypted = encryptResource(resource, patient.public_key);
+    const encrypted = await encryptResource(resource, patient.kms_key_id);
     const encryptTime = Date.now() - encryptStart;
     console.log("Fim criptografia: " + encryptTime);
 
@@ -179,13 +148,24 @@ async function handleReencryptionRequested(event) {
     console.log(`[metadata] Request de re-criptografia para asset ${assetId} targetPatientIdentifier=${targetPatientIdentifier}`);
 
     try {
+        const assetOwnerKeyId = await db.getAssetOwnerKeyId(assetId);
+        if (!assetOwnerKeyId) {
+            throw new Error(`Owner key for asset ${assetId} não encontrado`);
+        }
+
         const asset = await db.getClinicalAssetById(assetId);
         if (!asset) {
             throw new Error(`Asset ${assetId} não encontrado`);
         }
 
-        const recipient = await db.getPatientPublicKey(targetPatientIdentifier);
-        const newEncryptedKey = reencryptAesKey(asset.encrypted_aes_key, proxyToken);
+        const recipient = await db.getPatientKmsKey(targetPatientIdentifier);
+        const reencryptToken = proxyToken || {
+            type: "kms",
+            ownerKeyId: assetOwnerKeyId,
+            recipientKeyId: recipient.kms_key_id
+        };
+
+        const newEncryptedKey = await reencryptAesKey(asset.encrypted_aes_key, reencryptToken);
 
         await db.updateClinicalAssetEncryptedKey(assetId, newEncryptedKey, recipient.id);
 

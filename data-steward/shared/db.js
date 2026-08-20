@@ -1,9 +1,9 @@
 const pool = require("./database");
 
-async function getPatientPublicKey(patientIdentifier) {
+async function getPatientKmsKey(patientIdentifier) {
     const result = await pool.query(
         `
-        SELECT id, public_key
+        SELECT id, kms_key_id
         FROM patients
         WHERE patient_identifier = $1
         `,
@@ -20,7 +20,7 @@ async function getPatientPublicKey(patientIdentifier) {
 async function insertPendingClinicalAsset(requestId, metadata, encrypted, patientId) {
     let resolvedPatientId = patientId;
     if (!resolvedPatientId) {
-        const patient = await getPatientPublicKey(metadata.patientIdentifier);
+        const patient = await getPatientKmsKey(metadata.patientIdentifier);
         resolvedPatientId = patient.id;
     }
 
@@ -105,6 +105,20 @@ async function updateClinicalAssetEncryptedKey(assetId, encryptedKey, patientId)
         `,
         [encryptedKey, patientId, assetId]
     );
+}
+
+async function getAssetOwnerKeyId(assetId) {
+    const result = await pool.query(
+        `
+        SELECT p.kms_key_id AS owner_kms_key_id
+        FROM clinical_assets c
+        JOIN patients p ON c.patient_id = p.id
+        WHERE c.id = $1
+        `,
+        [assetId]
+    );
+
+    return result.rows[0]?.owner_kms_key_id;
 }
 
 async function updateClinicalAssetStatusById(assetId, status) {
@@ -220,12 +234,13 @@ async function insertAuditLog(event, data) {
 }
 
 module.exports = {
-    getPatientPublicKey,
+    getPatientKmsKey,
     insertPendingClinicalAsset,
     markClinicalAssetStored,
     markClinicalAssetCompletedByRequestId,
     getClinicalAssetById,
     updateClinicalAssetEncryptedKey,
+    getAssetOwnerKeyId,
     updateClinicalAssetStatusById,
     insertMetadataLog,
     insertProcessingMetrics,

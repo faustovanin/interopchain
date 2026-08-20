@@ -1,12 +1,27 @@
 const crypto = require("crypto");
+const {
+  KMSClient,
+  EncryptCommand,
+  DecryptCommand
+} = require("@aws-sdk/client-kms");
+
+const kmsClient = new KMSClient({
+  region: process.env.AWS_REGION || "us-east-1"
+});
 
 function ensureBuffer(value) {
-  return Buffer.isBuffer(value)
-    ? value
-    : Buffer.from(value, "base64");
+  if (Buffer.isBuffer(value)) {
+    return value;
+  }
+
+  if (value instanceof Uint8Array) {
+    return Buffer.from(value);
+  }
+
+  return Buffer.from(value, "base64");
 }
 
-function encryptResource(resource, publicKeyPem) {
+async function encryptResource(resource, kmsKeyId) {
   const aesKey = crypto.randomBytes(32);
   const nonce = crypto.randomBytes(12);
 
@@ -22,43 +37,50 @@ function encryptResource(resource, publicKeyPem) {
   ]);
 
   const authTag = cipher.getAuthTag();
-  const encryptedKey = crypto.publicEncrypt(
-    publicKeyPem,
-    aesKey
+
+  const encryptedKeyResult = await kmsClient.send(
+    new EncryptCommand({
+      KeyId: kmsKeyId,
+      Plaintext: aesKey
+    })
   );
 
   return {
     ciphertext: ciphertext.toString("base64"),
-    encryptedKey: encryptedKey.toString("base64"),
+    encryptedKey: encryptedKeyResult.CiphertextBlob.toString("base64"),
     nonce: nonce.toString("base64"),
     authTag: authTag.toString("base64")
   };
 }
 
-function createProxyReencryptionToken(ownerPrivateKeyPem, recipientPublicKeyPem) {
+function createProxyReencryptionToken(ownerKeyId, recipientKeyId) {
   return {
-    type: "rsa-hybrid-placeholder",
-    ownerPrivateKeyPem,
-    recipientPublicKeyPem
+    type: "kms",
+    ownerKeyId,
+    recipientKeyId
   };
 }
 
-function reencryptAesKey(encryptedAesKey, proxyToken) {
-  if (!proxyToken || proxyToken.type !== "rsa-hybrid-placeholder") {
+async function reencryptAesKey(encryptedAesKey, proxyToken) {
+  if (!proxyToken || proxyToken.type !== "kms") {
     throw new Error("Unsupported proxy re-encryption token.");
   }
 
-  const aesKey = crypto.privateDecrypt(
-    proxyToken.ownerPrivateKeyPem,
-    ensureBuffer(encryptedAesKey)
+  const decryptedKeyResult = await kmsClient.send(
+    new DecryptCommand({
+      CiphertextBlob: ensureBuffer(encryptedAesKey),
+      KeyId: proxyToken.ownerKeyId
+    })
   );
 
-  const newEncryptedKey = crypto.publicEncrypt(
-    proxyToken.recipientPublicKeyPem,
-    aesKey
+  const newEncryptedKeyResult = await kmsClient.send(
+    new EncryptCommand({
+      KeyId: proxyToken.recipientKeyId,
+      Plaintext: decryptedKeyResult.Plaintext
+    })
   );
 
-  return newEncryptedKey.toString("base64");
+  return newEncryptedKeyResult.CiphertextBlob.toString("base64");
 }
 
 module.exports = {
