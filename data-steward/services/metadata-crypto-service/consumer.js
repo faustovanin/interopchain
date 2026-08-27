@@ -7,73 +7,105 @@ const {
     eventTypes
 } = require("../../shared/contracts");
 
+const SENSITIVE_METADATA_TERMS = [
+    "address",
+    "birthdate",
+    "communication",
+    "contact",
+    "deceased",
+    "email",
+    "emergencycontact",
+    "family",
+    "given",
+    "gender",
+    "identifier",
+    "maritalstatus",
+    "name",
+    "password",
+    "photo",
+    "phone",
+    "telecom",
+    "text",
+    "valueQuantity",
+    "value",
+];
+
+function isSensitiveMetadataField(fieldName) {
+    const normalizedName = fieldName.toLowerCase().replace(/[^a-z0-9]/g, "");
+    return SENSITIVE_METADATA_TERMS.some(term => normalizedName.includes(term));
+}
+
+function filterMetadata(value) {
+    if (Array.isArray(value)) {
+        return value
+            .map(item => filterMetadata(item))
+            .filter(item => item !== undefined);
+    }
+
+    if (value && typeof value === "object") {
+        return Object.entries(value).reduce((metadata, [fieldName, fieldValue]) => {
+            if (!isSensitiveMetadataField(fieldName)) {
+                const filteredValue = filterMetadata(fieldValue);
+                if (filteredValue !== undefined) {
+                    metadata[fieldName] = filteredValue;
+                }
+            }
+            return metadata;
+        }, {});
+    }
+
+    return value;
+}
+
+function findPatientIdentifier(resource) {
+    let patientIdentifier;
+    let fallbackIdentifier;
+
+    function visit(value) {
+        if (patientIdentifier || value === null || value === undefined) {
+            return;
+        }
+
+        if (Array.isArray(value)) {
+            value.forEach(visit);
+            return;
+        }
+
+        if (typeof value !== "object") {
+            return;
+        }
+
+        if (typeof value.reference === "string" && value.reference.startsWith("Patient/")) {
+            patientIdentifier = value.reference.slice("Patient/".length);
+            return;
+        }
+
+        if (value.identifier?.[0]?.value && !fallbackIdentifier) {
+            fallbackIdentifier = value.identifier[0].value;
+        }
+
+        Object.values(value).forEach(visit);
+    }
+
+    visit(resource);
+    return patientIdentifier || fallbackIdentifier || resource.id;
+}
 
 function extractMetadata(resource) {
-    switch (resource.resourceType) {
-        case "Observation":
-            return extractObservationMetadata(resource);
-        case "Patient":
-            return extractPatientMetadata(resource);
-        case "Practitioner":
-            return extractPractitionerMetadata(resource);
-        default:
-            return extractGenericMetadata(resource);
-    }
-}
+    const metadata = filterMetadata(resource);
 
-function extractObservationMetadata(resource) {
     return {
+        ...metadata,
         resourceType: resource.resourceType,
         resourceIdentifier: resource.id,
-        patientIdentifier: resource.subject?.reference?.replace("Patient/", "") || resource.id,
-        profile: resource.meta?.profile?.[0],
-        status: resource.status,
-        categoryCode: resource.category?.[0]?.coding?.[0]?.code,
-        examCode: resource.code?.coding?.[0]?.code,
-        effectiveDateTime: resource.effectiveDateTime,
-        issued: resource.issued,
-        performerCount: resource.performer?.length || 0,
-        performerSystems: resource.performer?.map(p => p.identifier?.system) || [],
-        referenceRange: resource.referenceRange?.[0]?.text
+        patientIdentifier: findPatientIdentifier(resource)
     };
 }
 
-function extractPatientMetadata(resource) {
-    return {
-        resourceType: resource.resourceType,
-        resourceIdentifier: resource.id,
-        patientIdentifier: resource.identifier?.[0]?.value || resource.id,
-        profile: resource.meta?.profile?.[0],
-        status: resource.active ? "active" : "inactive",
-    };
-}
-
-function extractPractitionerMetadata(resource) {
-    return {
-        resourceType: resource.resourceType,
-        resourceIdentifier: resource.id,
-        patientIdentifier: resource.identifier?.[0]?.value || resource.id,
-        profile: resource.meta?.profile?.[0],
-        status: resource.active ? "active" : "inactive",
-    };
-}
-
-function extractGenericMetadata(resource) {
-    return {
-        resourceType: resource.resourceType,
-        resourceIdentifier: resource.id,
-        patientIdentifier: resource.subject?.reference?.replace("Patient/", "") || resource.identifier?.[0]?.value || resource.id,
-        profile: resource.meta?.profile?.[0],
-        status: resource.status || resource.active,
-        categoryCode: resource.category?.[0]?.coding?.[0]?.code,
-        examCode: resource.code?.coding?.[0]?.code,
-        effectiveDateTime: resource.effectiveDateTime,
-        issued: resource.issued,
-        performerCount: resource.performer?.length || 0,
-        performerSystems: resource.performer?.map(p => p.identifier?.system) || [],
-        referenceRange: resource.referenceRange?.[0]?.text
-    };
-}
+//const extractObservationMetadata = extractMetadata;
+//const extractPatientMetadata = extractMetadata;
+//const extractPractitionerMetadata = extractMetadata;
+//const extractGenericMetadata = extractMetadata;
 
 async function handleUploadRequested(event) {
     const requestId = event.requestId;
@@ -257,4 +289,15 @@ async function run() {
     });
 }
 
-run().catch(console.error);
+if (require.main === module) {
+    run().catch(console.error);
+}
+
+module.exports = {
+    extractMetadata,
+    //extractObservationMetadata,
+    //extractPatientMetadata,
+    //extractPractitionerMetadata,
+    //extractGenericMetadata,
+    SENSITIVE_METADATA_TERMS
+};

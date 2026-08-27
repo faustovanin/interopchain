@@ -13,12 +13,26 @@ let currentNodeIndex = 0;
 const nodeCooldowns = new Map();
 const COOLDOWN_MS = 20000;
 
+let ipfs_nodes = "";
+const ipfs_env = process.env.IPFS_ENV || "development";
+
+if (ipfs_env === "development") {
+    console.log("IPFS_ENV: development");
+    ipfs_nodes = process.env.IPFS_API_URL;
+}
+else if (ipfs_env === null || ipfs_env === undefined) {
+    console.log("IPFS_ENV: null");
+    ipfs_nodes = process.env.IPFS_API_URL;
+}
+else {
+    console.log("IPFS_ENV: production");
+    ipfs_nodes = process.env.IPFS_API_NODES;
+}
+
 async function uploadToIPFSDist(payload) {
     console.log("Enviando para IPFS");
 
-    const nodes = process.env.IPFS_API_NODES
-        .split(",")
-        .map(node => node.trim());
+    const nodes = ipfs_nodes.split(",").map(node => node.trim());
 
     let lastError;
     const now = Date.now();

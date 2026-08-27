@@ -45,10 +45,10 @@ async function insertPendingClinicalAsset(requestId, metadata, encrypted, patien
             resolvedPatientId,
             metadata.resourceType,
             metadata.resourceIdentifier,
-            encrypted.ciphertext,
-            encrypted.encryptedKey,
-            encrypted.nonce,
-            encrypted.authTag
+            Buffer.from(encrypted.ciphertext, "base64"),
+            Buffer.from(encrypted.encryptedKey, "base64"),
+            Buffer.from(encrypted.nonce, "base64"),
+            Buffer.from(encrypted.authTag, "base64")
         ]
     );
 
@@ -103,7 +103,7 @@ async function updateClinicalAssetEncryptedKey(assetId, encryptedKey, patientId)
             patient_id = $2
         WHERE id = $3
         `,
-        [encryptedKey, patientId, assetId]
+        [Buffer.from(encryptedKey, "base64"), patientId, assetId]
     );
 }
 

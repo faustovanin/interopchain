@@ -2,8 +2,30 @@
 CREATE TABLE patients (
     id SERIAL PRIMARY KEY,
     patient_identifier VARCHAR(255) NOT NULL UNIQUE,
+    full_name VARCHAR(255) NOT NULL,
+    cpf VARCHAR(11) UNIQUE,
+    cns VARCHAR(15) UNIQUE,
+    birth_date DATE,
+    sex_at_birth VARCHAR(30),
+    gender_identity VARCHAR(50),
+    phone VARCHAR(30),
+    email VARCHAR(255) UNIQUE,
+    address JSONB,
+    emergency_contact JSONB,
+    consent_status VARCHAR(30) NOT NULL DEFAULT 'pending',
+    consent_updated_at TIMESTAMP,
+    is_active BOOLEAN NOT NULL DEFAULT TRUE,
+    password_hash TEXT,
+    last_login_at TIMESTAMP,
     kms_key_id TEXT NOT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT chk_patient_cpf_digits
+        CHECK (cpf IS NULL OR cpf ~ '^[0-9]{11}$'),
+    CONSTRAINT chk_patient_cns_digits
+        CHECK (cns IS NULL OR cns ~ '^[0-9]{15}$'),
+    CONSTRAINT chk_patient_consent_status
+        CHECK (consent_status IN ('pending', 'granted', 'revoked'))
 );
 
 CREATE TABLE clinical_assets (
@@ -76,27 +98,33 @@ ON processing_metrics(request_id);
 
 INSERT INTO patients (
     patient_identifier,
+    full_name,
     kms_key_id
 )
 VALUES (
     'patient001',
-    'alias/patient001'
+    'Paciente de Exemplo 001',
+    'alias/paciente1'
 );
 
 INSERT INTO patients (
     patient_identifier,
+    full_name,
     kms_key_id
 )
 VALUES (
     'patient002',
+    'Paciente de Exemplo 002',
     'alias/patient002'
 );
 
 INSERT INTO patients (
     patient_identifier,
+    full_name,
     kms_key_id
 )
 VALUES (
     'patient003',
+    'Paciente de Exemplo 003',
     'alias/patient003'
 );

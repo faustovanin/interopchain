@@ -34,6 +34,10 @@ function ensureBuffer(value) {
   return Buffer.from(value, "base64");
 }
 
+function toBase64(value) {
+  return Buffer.from(value).toString("base64");
+}
+
 async function encryptResource(resource, kmsKeyId) {
   const aesKey = crypto.randomBytes(32);
   const nonce = crypto.randomBytes(12);
@@ -61,7 +65,7 @@ async function encryptResource(resource, kmsKeyId) {
 
   return {
     ciphertext: ciphertext.toString("base64"),
-    encryptedKey: encryptedKeyResult.CiphertextBlob.toString("base64"),
+    encryptedKey: toBase64(encryptedKeyResult.CiphertextBlob),
     nonce: nonce.toString("base64"),
     authTag: authTag.toString("base64")
   };
@@ -96,7 +100,7 @@ async function reencryptAesKey(encryptedAesKey, proxyToken) {
     })
   );
 
-  return newEncryptedKeyResult.CiphertextBlob.toString("base64");
+  return toBase64(newEncryptedKeyResult.CiphertextBlob);
 }
 
 module.exports = {
