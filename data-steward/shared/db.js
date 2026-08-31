@@ -1,6 +1,11 @@
 const pool = require("./database");
+const config = require("./config");
+const { LogController, LogLevel_e } = require("../log/log-controller.js");
+
+const logger = new LogController(config.logLevel === "all" ? LogLevel_e.All : LogLevel_e.Error);
 
 async function getPatientKmsKey(patientIdentifier) {
+    logger.logInfo(`Buscando KMS key para paciente: ${patientIdentifier}`);
     const result = await pool.query(
         `
         SELECT id, kms_key_id
@@ -9,8 +14,10 @@ async function getPatientKmsKey(patientIdentifier) {
         `,
         [patientIdentifier]
     );
+    logger.logInfo(`Resultado da busca de KMS key para paciente ${patientIdentifier}: ${JSON.stringify(result.rows)}`);
 
     if (result.rows.length === 0) {
+        logger.logError(`Paciente não encontrado: ${patientIdentifier}`);
         throw new Error("Paciente não encontrado.");
     }
 
@@ -18,6 +25,7 @@ async function getPatientKmsKey(patientIdentifier) {
 }
 
 async function insertPendingClinicalAsset(requestId, metadata, encrypted, patientId) {
+    logger.logInfo(`Inserindo clinical asset pendente para requestId: ${requestId}, metadata: ${JSON.stringify(metadata)}, encrypted: ${JSON.stringify(encrypted)}, patientId: ${patientId}`);
     let resolvedPatientId = patientId;
     if (!resolvedPatientId) {
         const patient = await getPatientKmsKey(metadata.patientIdentifier);
@@ -52,10 +60,12 @@ async function insertPendingClinicalAsset(requestId, metadata, encrypted, patien
         ]
     );
 
+    logger.logInfo(`Clinical asset inserido com sucesso para requestId: ${requestId}, id: ${result.rows[0].id}`);
     return result.rows[0].id;
 }
 
 async function markClinicalAssetStored(assetId, cid) {
+    logger.logInfo(`Marcando clinical asset como armazenado para assetId: ${assetId}, cid: ${cid}`);
     await pool.query(
         `
         UPDATE clinical_assets
@@ -69,6 +79,7 @@ async function markClinicalAssetStored(assetId, cid) {
 }
 
 async function markClinicalAssetCompletedByRequestId(cid, requestId) {
+    logger.logInfo(`Marcando clinical asset como completo para requestId: ${requestId}, cid: ${cid}`);
     await pool.query(
         `
         UPDATE clinical_assets
@@ -82,6 +93,7 @@ async function markClinicalAssetCompletedByRequestId(cid, requestId) {
 }
 
 async function getClinicalAssetById(assetId) {
+    logger.logInfo(`Buscando clinical asset por ID: ${assetId}`);
     const result = await pool.query(
         `
         SELECT id, patient_id, resource_type, resource_identifier, encrypted_aes_key
@@ -91,10 +103,12 @@ async function getClinicalAssetById(assetId) {
         [assetId]
     );
 
+    logger.logInfo(`Resultado da busca de clinical asset por ID ${assetId}: ${JSON.stringify(result.rows)}`);
     return result.rows[0];
 }
 
 async function updateClinicalAssetEncryptedKey(assetId, encryptedKey, patientId) {
+    logger.logInfo(`Atualizando chave criptografada do clinical asset: ${assetId}`);
     await pool.query(
         `
         UPDATE clinical_assets
@@ -108,6 +122,7 @@ async function updateClinicalAssetEncryptedKey(assetId, encryptedKey, patientId)
 }
 
 async function getAssetOwnerKeyId(assetId) {
+    logger.logInfo(`Buscando KMS key do proprietário do clinical asset: ${assetId}`);
     const result = await pool.query(
         `
         SELECT p.kms_key_id AS owner_kms_key_id
@@ -117,11 +132,12 @@ async function getAssetOwnerKeyId(assetId) {
         `,
         [assetId]
     );
-
+    logger.logInfo(`Resultado da busca de KMS key para proprietário do clinical asset ${assetId}: ${JSON.stringify(result.rows)}`);
     return result.rows[0]?.owner_kms_key_id;
 }
 
 async function updateClinicalAssetStatusById(assetId, status) {
+    logger.logInfo(`Atualizando status do clinical asset: ${assetId}, novo status: ${status}`);
     await pool.query(
         `
         UPDATE clinical_assets
@@ -133,6 +149,7 @@ async function updateClinicalAssetStatusById(assetId, status) {
 }
 
 async function insertMetadataLog(clinicalAssetId, metadata) {
+    logger.logInfo(`Inserindo log de metadata para clinical asset: ${clinicalAssetId}`);
     await pool.query(
         `
         INSERT INTO metadata_log
@@ -148,6 +165,7 @@ async function insertMetadataLog(clinicalAssetId, metadata) {
 }
 
 async function insertProcessingMetrics(requestId, metadataTime, encryptionTime, payloadSize) {
+    logger.logInfo(`Inserindo métricas de processamento para requestId: ${requestId}`);
     await pool.query(
         `
         INSERT INTO processing_metrics
@@ -170,6 +188,7 @@ async function insertProcessingMetrics(requestId, metadataTime, encryptionTime, 
 }
 
 async function updateProcessingMetrics(ipfsUploadTimeMs, storageNode, totalTimeMs, requestId) {
+    logger.logInfo(`Atualizando métricas de processamento para requestId: ${requestId}`);
     await pool.query(
         `
         UPDATE processing_metrics
@@ -189,6 +208,7 @@ async function updateProcessingMetrics(ipfsUploadTimeMs, storageNode, totalTimeM
 }
 
 async function getRequestTotalTime(requestId) {
+    logger.logInfo(`Buscando tempo total de processamento para requestId: ${requestId}`);
     const result = await pool.query(
         `
         SELECT 
@@ -204,10 +224,12 @@ async function getRequestTotalTime(requestId) {
         [requestId]
     );
 
+    logger.logInfo(`Tempo total de processamento para requestId ${requestId}: ${result.rows[0]?.total_time_ms || 0} ms`);
     return Number(result.rows[0]?.total_time_ms || 0);
 }
 
 async function insertAuditLog(event, data) {
+    logger.logInfo(`Inserindo log de auditoria para requestId: ${event.requestId}`);
     await pool.query(
         `
         INSERT INTO audit_log

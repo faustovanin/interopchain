@@ -1,9 +1,13 @@
 const fs = require("fs");
 const path = require("path");
 
-const { consumer } = require("../../../shared/kafka");
+const { connectConsumer } = require("../../../shared/kafka");
 const { eventTypes } = require("../../../shared/contracts");
 const db = require("../../../shared/db");
+
+const config = require("../../../shared/config");
+const { LogController, LogLevel_e } = require("../../../shared/log-controller.js");
+const logger = new LogController(config.logLevel === "all" ? LogLevel_e.All : LogLevel_e.Error);
 
 const OUTPUT = path.join(
     __dirname,
@@ -25,19 +29,19 @@ async function updateCompletedStatus(event) {
     const assetId = event.data?.assetId;
 
     if (!assetId) {
-        console.log("[audit] completed sem assetId");
+        logger.logInfo("[audit] completed sem assetId");
         return;
     }
 
     await db.updateClinicalAssetStatusById(assetId, "COMPLETED");
 
-    console.log(
+    logger.logInfo(
         `[audit] asset ${assetId} atualizado para COMPLETED`
     );
 }
 
 async function saveAudit(event) {
-    console.log("Salvando evento em arquivo")
+    logger.logInfo("Salvando evento em arquivo");
     const data = event.data || {};
 
     const line = [
@@ -50,39 +54,42 @@ async function saveAudit(event) {
         data
     ].join(",");
 
-    console.log(line);
+    logger.logInfo(line);
     fs.appendFileSync(
         OUTPUT,
         line + "\n"
     );
 
     await logAudit(event, data);
-    console.log("Salvo com requestId: " + event.requestId);
+    logger.logInfo("Salvo com requestId: " + event.requestId);
 }
 
 
 async function run() {
-    const kafkaConsumer = consumer("audit-service");
-
-    console.log("Conectando ao Kafka...")
-    await kafkaConsumer.connect();
-    await kafkaConsumer.subscribe({
-        topic: eventTypes.RESOURCE_UPLOAD_REQUESTED,
-        fromBeginning: true
-    });
-    await kafkaConsumer.subscribe({
-        topic: eventTypes.RESOURCE_READY_FOR_STORAGE,
-        fromBeginning: true
-    });
-    await kafkaConsumer.subscribe({
-        topic: eventTypes.RESOURCE_UPLOAD_COMPLETED,
-        fromBeginning: true
-    });
-    await kafkaConsumer.subscribe({
-        topic: eventTypes.RESOURCE_UPLOAD_FAILED,
-        fromBeginning: true
-    });
-    console.log("Conectado e inscito nos eventos RESOURCE_UPLOAD_REQUESTED, RESOURCE_READY_FOR_STORAGE, RESOURCE_UPLOAD_COMPLETED e RESOURCE_UPLOAD_FAILED");
+    logger.logInfo("Conectando Audit ao Kafka...");
+    const kafkaConsumer = await connectConsumer(
+        "audit-service",
+        [
+            {
+                topic: eventTypes.RESOURCE_UPLOAD_REQUESTED,
+                fromBeginning: true
+            },
+            {
+                topic: eventTypes.RESOURCE_READY_FOR_STORAGE,
+                fromBeginning: true
+            },
+            {
+                topic: eventTypes.RESOURCE_UPLOAD_COMPLETED,
+                fromBeginning: true
+            },
+            {
+                topic: eventTypes.RESOURCE_UPLOAD_FAILED,
+                fromBeginning: true
+            }
+        ],
+        "audit"
+    );
+    logger.logInfo("Conectado e inscito nos eventos RESOURCE_UPLOAD_REQUESTED, RESOURCE_READY_FOR_STORAGE, RESOURCE_UPLOAD_COMPLETED e RESOURCE_UPLOAD_FAILED");
 
     await kafkaConsumer.run({
         eachMessage:
@@ -94,12 +101,12 @@ async function run() {
                     if (event.eventType === eventTypes.RESOURCE_UPLOAD_COMPLETED) {
                         await updateCompletedStatus(event);
                     }
-                    console.log(`[audit] ${event.eventType} - ${event.requestId}`);
+                    logger.logInfo(`[audit] ${event.eventType} - ${event.requestId}`);
                     await saveAudit(event);
                 }
 
                 catch(error) {
-                    console.error(
+                    logger.logError(
                         "[audit]",
                         error.message
                     );

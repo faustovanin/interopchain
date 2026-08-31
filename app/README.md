@@ -69,4 +69,5 @@ app/
 | Variable | Description | Default |
 |---|---|---|
 | `REACT_APP_API_URL` | Base URL of the NodeJS server REST API | `http://localhost:3002` |
+| `IPFS_API_URL` | IPFS API URL used to retrieve encrypted resources by CID | `http://localhost:5001` |
 | `PORT` | Port for the development server | `3001` |

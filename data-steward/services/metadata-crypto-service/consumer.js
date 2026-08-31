@@ -1,34 +1,20 @@
 const { encryptResource, reencryptAesKey } = require("../../shared/crypto");
 
 const db = require("../../shared/db");
-const { consumer, getProducer } = require("../../shared/kafka");
+const { connectConsumer, getProducer } = require("../../shared/kafka");
 const {
     buildEnvelope,
     eventTypes
 } = require("../../shared/contracts");
 
-const SENSITIVE_METADATA_TERMS = [
-    "address",
-    "birthdate",
-    "communication",
-    "contact",
-    "deceased",
-    "email",
-    "emergencycontact",
-    "family",
-    "given",
-    "gender",
-    "identifier",
-    "maritalstatus",
-    "name",
-    "password",
-    "photo",
-    "phone",
-    "telecom",
-    "text",
-    "valueQuantity",
-    "value",
-];
+const SENSITIVE_METADATA_TERMS = require("../../shared/metadata").SENSITIVE_METADATA_TERMS;
+
+const config = require("../../shared/config");
+const { LogController, LogLevel_e } = require("../../shared/log-controller.js");
+const logger = new LogController(config.logLevel === "all" ? LogLevel_e.All : LogLevel_e.Error);
+
+logger.logInfo("Iniciando serviço de storage...");
+logger.logInfo("Termos sensíveis de metadata: " + SENSITIVE_METADATA_TERMS.join(", "));
 
 function isSensitiveMetadataField(fieldName) {
     const normalizedName = fieldName.toLowerCase().replace(/[^a-z0-9]/g, "");
@@ -102,33 +88,28 @@ function extractMetadata(resource) {
     };
 }
 
-//const extractObservationMetadata = extractMetadata;
-//const extractPatientMetadata = extractMetadata;
-//const extractPractitionerMetadata = extractMetadata;
-//const extractGenericMetadata = extractMetadata;
-
 async function handleUploadRequested(event) {
     const requestId = event.requestId;
-    console.log("Entrou no metadata-crypto service para processar evento RESOURCE_UPLOAD_REQUESTED: " + requestId);
+    logger.logInfo("Entrou no metadata-crypto service para processar evento RESOURCE_UPLOAD_REQUESTED: " + requestId);
 
     const metadataStart = Date.now();
-    console.log("Início metadata: " + metadataStart);
+    logger.logInfo("Início metadata: " + metadataStart);
     const resource = event.data.resource;
     const metadata = extractMetadata(resource);
     const metadataTime = Date.now() - metadataStart;
-    console.log("Fim metadata: " + metadataTime);
+    logger.logInfo("Fim metadata: " + metadataTime);
 
     const patient = await db.getPatientKmsKey(metadata.patientIdentifier);
-    console.log("Patient: " + patient.id + " - " + metadata.patientIdentifier);
+    logger.logInfo("Patient: " + patient.id + " - " + metadata.patientIdentifier);
 
     const encryptStart = Date.now();
-    console.log("Início criptografia: " + encryptStart);
+    logger.logInfo("Início criptografia: " + encryptStart);
     const encrypted = await encryptResource(resource, patient.kms_key_id);
     const encryptTime = Date.now() - encryptStart;
-    console.log("Fim criptografia: " + encryptTime);
+    logger.logInfo("Fim criptografia: " + encryptTime);
 
     const assetId = await db.insertPendingClinicalAsset(requestId, metadata, encrypted, patient.id);
-    console.log("Inserção em clinical_asset: " + assetId + " para requestId: " + requestId);
+    logger.logInfo("Inserção em clinical_asset: " + assetId + " para requestId: " + requestId);
 
     await db.insertMetadataLog(assetId, metadata);
     await db.insertProcessingMetrics(
@@ -137,9 +118,9 @@ async function handleUploadRequested(event) {
         encryptTime,
         Buffer.byteLength(JSON.stringify(resource))
     );
-    console.log("Inserindo logs de métricas para requestId: " + requestId);
+    logger.logInfo("Inserindo logs de métricas para requestId: " + requestId);
 
-    console.log("Construindo envelope para evento RESOURCE_READY_FOR_STORAGE: " + requestId);
+    logger.logInfo("Construindo envelope para evento RESOURCE_READY_FOR_STORAGE: " + requestId);
     const producer = await getProducer();
 
     await producer.send({
@@ -162,7 +143,7 @@ async function handleUploadRequested(event) {
         }
     ]
 });
-    console.log("Publicado evento RESOURCE_READY_FOR_STORAGE no Kafka para requestId: " + requestId);
+    logger.logInfo("Publicado evento RESOURCE_READY_FOR_STORAGE no Kafka para requestId: " + requestId);
 }
 
 async function handleUploadCompleted(event) {
@@ -172,21 +153,23 @@ async function handleUploadCompleted(event) {
     } = event.data;
 
     await db.markClinicalAssetStored(assetId, cid);
-    console.log(`[metadata] ${assetId} atualizado com CID ${cid}`);
+    logger.logInfo(`[metadata] ${assetId} atualizado com CID ${cid}`);
 }
 
 async function handleReencryptionRequested(event) {
     const { assetId, targetPatientIdentifier, proxyToken } = event.data;
-    console.log(`[metadata] Request de re-criptografia para asset ${assetId} targetPatientIdentifier=${targetPatientIdentifier}`);
+    logger.logInfo(`[metadata] Request de re-criptografia para asset ${assetId} targetPatientIdentifier=${targetPatientIdentifier}`);
 
     try {
         const assetOwnerKeyId = await db.getAssetOwnerKeyId(assetId);
         if (!assetOwnerKeyId) {
+            logger.logError(`[metadata] Owner key for asset ${assetId} não encontrado`);
             throw new Error(`Owner key for asset ${assetId} não encontrado`);
         }
 
         const asset = await db.getClinicalAssetById(assetId);
         if (!asset) {
+            logger.logError(`[metadata] Asset ${assetId} não encontrado`);
             throw new Error(`Asset ${assetId} não encontrado`);
         }
 
@@ -218,9 +201,9 @@ async function handleReencryptionRequested(event) {
             messages: [{ key: event.requestId, value: JSON.stringify(envelope) }]
         });
 
-        console.log(`[metadata] asset ${assetId} re-criptografado para paciente ${recipient.id}`);
+        logger.logInfo(`[metadata] asset ${assetId} re-criptografado para paciente ${recipient.id}`);
     } catch (err) {
-        console.error(`[metadata] falha ao re-criptografar asset ${assetId}:`, err.message);
+        logger.logError(`[metadata] falha ao re-criptografar asset ${assetId}:`, err.message);
         const producer = await getProducer();
         const envelope = buildEnvelope(
             eventTypes.RESOURCE_REENCRYPTION_FAILED,
@@ -242,25 +225,27 @@ async function handleReencryptionRequested(event) {
 }
 
 async function run() {
-    const kafkaConsumer = consumer("metadata-crypto-service");
-    console.log("Conectando ao Kafka...");
-    await kafkaConsumer.connect();
-    await kafkaConsumer.subscribe({
-        topic: eventTypes.RESOURCE_UPLOAD_REQUESTED,
-        fromBeginning: false
-    });
+    logger.logInfo("Conectando Metadata-Crypto ao Kafka...");
+    const kafkaConsumer = await connectConsumer(
+        "metadata-crypto-service",
+        [
+            {
+                topic: eventTypes.RESOURCE_UPLOAD_REQUESTED,
+                fromBeginning: false
+            },
+            {
+                topic: eventTypes.RESOURCE_UPLOAD_COMPLETED,
+                fromBeginning: false
+            },
+            {
+                topic: eventTypes.RESOURCE_REENCRYPTION_REQUESTED,
+                fromBeginning: false
+            }
+        ],
+        "metadata-crypto"
+    );
 
-    await kafkaConsumer.subscribe({
-        topic: eventTypes.RESOURCE_UPLOAD_COMPLETED,
-        fromBeginning: false
-    });
-
-    await kafkaConsumer.subscribe({
-        topic: eventTypes.RESOURCE_REENCRYPTION_REQUESTED,
-        fromBeginning: false
-    });
-
-    console.log("Conectado e inscrito nos eventos RESOURCE_UPLOAD_REQUESTED, RESOURCE_UPLOAD_COMPLETED e RESOURCE_REENCRYPTION_REQUESTED");
+    logger.logInfo("Conectado e inscrito nos eventos RESOURCE_UPLOAD_REQUESTED, RESOURCE_UPLOAD_COMPLETED e RESOURCE_REENCRYPTION_REQUESTED");
     await kafkaConsumer.run({
         eachMessage:
             async ({ message }) => {
@@ -295,9 +280,4 @@ if (require.main === module) {
 
 module.exports = {
     extractMetadata,
-    //extractObservationMetadata,
-    //extractPatientMetadata,
-    //extractPractitionerMetadata,
-    //extractGenericMetadata,
-    SENSITIVE_METADATA_TERMS
 };

@@ -22,6 +22,10 @@ const kmsClient = new KMSClient({
   credentials
 });
 
+const config = require("./config");
+const { LogController, LogLevel_e } = require("../log/log-controller.js");
+const logger = new LogController(config.logLevel === "all" ? LogLevel_e.All : LogLevel_e.Error);
+
 function ensureBuffer(value) {
   if (Buffer.isBuffer(value)) {
     return value;
@@ -39,6 +43,7 @@ function toBase64(value) {
 }
 
 async function encryptResource(resource, kmsKeyId) {
+  logger.logInfo(`Encrypting resource with KMS key: ${kmsKeyId}`);
   const aesKey = crypto.randomBytes(32);
   const nonce = crypto.randomBytes(12);
 
@@ -63,6 +68,7 @@ async function encryptResource(resource, kmsKeyId) {
     })
   );
 
+  logger.logInfo(`Resource encrypted: ${ciphertext.toString("base64")}, nonce: ${nonce.toString("base64")}, authTag: ${authTag.toString("base64")}, encryptedKey: ${toBase64(encryptedKeyResult.CiphertextBlob)}`);
   return {
     ciphertext: ciphertext.toString("base64"),
     encryptedKey: toBase64(encryptedKeyResult.CiphertextBlob),
@@ -72,6 +78,7 @@ async function encryptResource(resource, kmsKeyId) {
 }
 
 function createProxyReencryptionToken(ownerKeyId, recipientKeyId) {
+  logger.logInfo(`Creating proxy re-encryption token: ${ownerKeyId} -> ${recipientKeyId}`);
   return {
     type: "kms",
     ownerKeyId,
@@ -80,7 +87,9 @@ function createProxyReencryptionToken(ownerKeyId, recipientKeyId) {
 }
 
 async function reencryptAesKey(encryptedAesKey, proxyToken) {
+  logger.logInfo(`Re-encrypting AES key with proxy token: ${JSON.stringify(proxyToken)}`);
   if (!proxyToken || proxyToken.type !== "kms") {
+    logger.logError(`Unsupported proxy re-encryption token: ${JSON.stringify(proxyToken)}`);
     throw new Error("Unsupported proxy re-encryption token.");
   }
 
@@ -100,6 +109,7 @@ async function reencryptAesKey(encryptedAesKey, proxyToken) {
     })
   );
 
+  logger.logInfo(`AES key re-encrypted: ${toBase64(newEncryptedKeyResult.CiphertextBlob)}`);
   return toBase64(newEncryptedKeyResult.CiphertextBlob);
 }
 
