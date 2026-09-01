@@ -1,12 +1,12 @@
 const { getProducer } = require("../../shared/kafka");
-const { buildEnvelope, buildRequestId, eventTypes } = require("../../shared/contracts");
-const config = require("../../../shared/config.js");
-const { LogController, LogLevel_e } = require("../../../shared/log-controller.js");
+const { buildEnvelope, buildRequestId, eventTypes } = require("../../shared/contracts.js");
+const config = require("../../shared/config.js");
+const { LogController, LogLevel_e } = require("../../shared/log-controller.js");
 const logger = new LogController(config.logLevel === "all" ? LogLevel_e.All : LogLevel_e.Error);
 
 async function publishUploadRequested(resource) {
   const requestId = buildRequestId();
-  logger.logInfo("Construindo envelope com requestId: " + requestId);
+  logger.logInfo("Construindo envelope de upload com requestId: " + requestId);
   const envelope = buildEnvelope(eventTypes.RESOURCE_UPLOAD_REQUESTED, requestId, "gateway", {
     resource: resource
   });

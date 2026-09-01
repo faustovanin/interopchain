@@ -34,11 +34,25 @@ services:
       - net-steward
 
 
-  metadata-crypto:
+  crypto:
     build:
       context: .
-      dockerfile: services/metadata-crypto-service/Dockerfile
-    container_name: metadata-crypto
+      dockerfile: services/crypto-service/Dockerfile
+    container_name: crypto
+    restart: unless-stopped
+    env_file:
+      - .env
+    depends_on:
+      kafka:
+        condition: service_started
+    networks:
+      - net-steward
+
+  metadata:
+    build:
+      context: .
+      dockerfile: services/metadata-service/Dockerfile
+    container_name: metadata
     restart: unless-stopped
     env_file:
       - .env

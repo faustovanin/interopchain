@@ -1,13 +1,13 @@
 const express = require("express");
 const router = express.Router();
 const { publishUploadRequested, publishReencryptionRequested } = require("../services/eventPublisher");
-const config = require("../../../shared/config.js");
-const { LogController, LogLevel_e } = require("../../../shared/log-controller.js");
+const config = require("../../shared/config.js");
+const { LogController, LogLevel_e } = require("../../shared/log-controller.js");
 const logger = new LogController(config.logLevel === "all" ? LogLevel_e.All : LogLevel_e.Error);
 
 async function upload(req, res) {
   try {
-    logger.logInfo("Publicando novo evento");
+    logger.logInfo("Publicando novo evento de upload");
     const requestId = await publishUploadRequested(req.body);
     res.status(202).json({
       requestId,

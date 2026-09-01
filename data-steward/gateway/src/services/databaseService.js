@@ -1,5 +1,4 @@
-const pool =
-    require("../config/database");
+const pool = require("../config/database");
 
 exports.getPatientKmsKey = async (patientIdentifier) => {
     const result =

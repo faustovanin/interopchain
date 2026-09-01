@@ -1,4 +1,4 @@
-export const SENSITIVE_METADATA_TERMS = [
+const SENSITIVE_METADATA_TERMS = [
     "address",
     "birthdate",
     "communication",
@@ -20,3 +20,7 @@ export const SENSITIVE_METADATA_TERMS = [
     "valueQuantity",
     "value",
 ];
+
+module.exports = {
+    SENSITIVE_METADATA_TERMS
+};

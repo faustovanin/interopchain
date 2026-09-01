@@ -1,27 +1,33 @@
-export const LogLevel_e = {
+const LogLevel_e = {
     All: 0,
     Error: 1
 };
 
-export class LogController {
+class LogController {
     logLevel = LogLevel_e.Error;
+    service = "";
 
     constructor(logLevel) {
         this.setLevel(logLevel);
     }
 
+    constructor(logLevel, service) {
+        this.setLevel(logLevel);
+        this.service = service;
+    }
+
     logInfo(message) {
         if (this.logLevel === LogLevel_e.All) {
-            console.debug(message);
+            console.debug(`[${this.service}] ${message}`);
         }
     }
 
     logWarning(message) {
-        console.warn(message);
+        console.warn(`[${this.service}] ${message}`);
     }
 
     logError(message) {
-        console.error(message);
+        console.error(`[${this.service}] ${message}`);
     }
 
     setLevel(level) {
@@ -34,3 +40,8 @@ export class LogController {
         return this.logLevel;
     }
 }
+
+module.exports = {
+    LogController,
+    LogLevel_e
+};

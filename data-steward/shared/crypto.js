@@ -23,8 +23,8 @@ const kmsClient = new KMSClient({
 });
 
 const config = require("./config");
-const { LogController, LogLevel_e } = require("../log/log-controller.js");
-const logger = new LogController(config.logLevel === "all" ? LogLevel_e.All : LogLevel_e.Error);
+const { LogController, LogLevel_e } = require("./log-controller.js");
+const logger = new LogController(config.logLevel === "all" ? LogLevel_e.All : LogLevel_e.Error, "crypto");
 
 function ensureBuffer(value) {
   if (Buffer.isBuffer(value)) {

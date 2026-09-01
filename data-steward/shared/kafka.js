@@ -1,8 +1,8 @@
 const { Kafka } = require("kafkajs");
 const config = require("./config");
 
-const { LogController, LogLevel_e } = require("../log/log-controller.js");
-const logger = new LogController(config.logLevel === "all" ? LogLevel_e.All : LogLevel_e.Error);
+const { LogController, LogLevel_e } = require("./log-controller.js");
+const logger = new LogController(config.logLevel === "all" ? LogLevel_e.All : LogLevel_e.Error, "kafka");
 
 const kafka = new Kafka({
   clientId: "data-steward",

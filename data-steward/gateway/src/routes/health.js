@@ -1,7 +1,7 @@
 const router = require("express").Router();
 const axios = require("axios");
-const config = require("../../../shared/config.js");
-const { LogController, LogLevel_e } = require("../../../shared/log-controller.js");
+const config = require("../../shared/config.js");
+const { LogController, LogLevel_e } = require("../../shared/log-controller.js");
 const logger = new LogController(config.logLevel === "all" ? LogLevel_e.All : LogLevel_e.Error);
 
 async function latency(url) {

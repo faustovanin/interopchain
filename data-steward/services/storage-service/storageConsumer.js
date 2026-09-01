@@ -2,20 +2,20 @@ const axios = require("axios");
 const FormData = require("form-data");
 const { performance } = require("perf_hooks");
 
-const { connectConsumer, getProducer } = require("../../shared/kafka");
-const db = require("../../shared/db");
+const { connectConsumer, getProducer } = require("../../shared/kafka.js");
+const db = require("../../shared/db.js");
 
-const { buildEnvelope, eventTypes } = require("../../shared/contracts");
+const { buildEnvelope, eventTypes } = require("../../shared/contracts.js");
 
-const config = require("../../shared/config");
+const config = require("../../shared/config.js");
 const { LogController, LogLevel_e } = require("../../shared/log-controller.js");
-const logger = new LogController(config.logLevel === "all" ? LogLevel_e.All : LogLevel_e.Error);
+const logger = new LogController(config.logLevel === "all" ? LogLevel_e.All : LogLevel_e.Error, "storage-service");
+logger.logInfo("Iniciando serviço de storage...");
 
 let currentNodeIndex = 0;
 
-// Guarda até quando cada nó deve ficar em cooldown
 const nodeCooldowns = new Map();
-const COOLDOWN_MS = 20000;
+const COOLDOWN_MS = process.env.IPFS_NODE_COOLDOWN_MS ? parseInt(process.env.IPFS_NODE_COOLDOWN_MS) : 10000;
 
 let ipfs_nodes = "";
 const ipfs_env = process.env.IPFS_ENV || "development";
@@ -42,11 +42,9 @@ async function uploadToIPFSDist(payload) {
     const now = Date.now();
 
     for (let attempt = 0; attempt < nodes.length; attempt++) {
-
         const index = (currentNodeIndex + attempt) % nodes.length;
         const node = nodes[index];
 
-        // Ignora nós que ainda estão em cooldown
         const cooldownUntil = nodeCooldowns.get(node);
         if (cooldownUntil && cooldownUntil > now) {
             logger.logInfo(
@@ -83,11 +81,7 @@ async function uploadToIPFSDist(payload) {
             const uploadTime = performance.now() - startedAt;
 
             logger.logInfo(`Upload realizado em ${node}`);
-
-            // Remove cooldown caso ele tenha voltado
             nodeCooldowns.delete(node);
-
-            // Próxima chamada começa no próximo nó
             currentNodeIndex = (index + 1) % nodes.length;
 
             return {
@@ -99,20 +93,16 @@ async function uploadToIPFSDist(payload) {
 
         } catch (error) {
             logger.logError(`Falha em ${node}`);
-
-            // Coloca o nó em cooldown
             nodeCooldowns.set(node, Date.now() + COOLDOWN_MS);
-
             lastError = error;
         }
     }
 
-    // Todos os nós estão em cooldown ou falharam
     throw lastError || new Error("Nenhum nó IPFS disponível.");
 }
 
 async function update_clinical_asset(cid, requestId) {
-    await db.markClinicalAssetCompletedByRequestId(cid, requestId);
+    await db.markClinicalAssetStatusByRequestId(cid, requestId, 'STORED');
 }
 
 async function verifyIPFSContent(node, cid) {
@@ -206,7 +196,7 @@ async function handleReadyForStorage(event) {
     });
 
     logger.logInfo("Evento RESOURCE_UPLOAD_COMPLETED enviado para Kafka: " + event.requestId);
-    logger.logInfo(`[storage] ${assetId} armazenado (${cid})`);
+    logger.logInfo(`${assetId} armazenado (${cid})`);
 }
 
 async function run() {
@@ -235,10 +225,7 @@ async function run() {
                     }
                 }
                 catch (err) {
-                    logger.logError(
-                        "[storage]",
-                        err.message
-                    );
+                    logger.logError(err.message);
                 }
             }
     });

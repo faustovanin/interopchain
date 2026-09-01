@@ -1,15 +1,17 @@
 const fs = require("fs");
 const path = require("path");
 
-const { connectConsumer } = require("../../../shared/kafka");
-const { eventTypes } = require("../../../shared/contracts");
-const db = require("../../../shared/db");
+const { connectConsumer } = require("../../../shared/kafka.js");
+const { eventTypes } = require("../../../shared/contracts.js");
+const db = require("../../../shared/db.js");
 
-const config = require("../../../shared/config");
+const config = require("../../../shared/config.js");
 const { LogController, LogLevel_e } = require("../../../shared/log-controller.js");
-const logger = new LogController(config.logLevel === "all" ? LogLevel_e.All : LogLevel_e.Error);
+const logger = new LogController(config.logLevel === "all" ? LogLevel_e.All : LogLevel_e.Error, "audit-service");
+logger.logInfo("Iniciando serviço de auditoria...");
 
-const OUTPUT = path.join(
+// Logs to audit.csv
+/*const OUTPUT = path.join(
     __dirname,
     "audit.csv"
 );
@@ -19,7 +21,7 @@ if (!fs.existsSync(OUTPUT)) {
         OUTPUT,
         "timestamp,eventType,requestId,assetId,resourceType,cid,status,ipfsUpload,payloadSize\n"
     );
-}
+}*/
 
 async function logAudit(event, data) {
     await db.insertAuditLog(event, data);
@@ -29,15 +31,13 @@ async function updateCompletedStatus(event) {
     const assetId = event.data?.assetId;
 
     if (!assetId) {
-        logger.logInfo("[audit] completed sem assetId");
+        logger.logInfo("Completed sem assetId");
         return;
     }
 
     await db.updateClinicalAssetStatusById(assetId, "COMPLETED");
 
-    logger.logInfo(
-        `[audit] asset ${assetId} atualizado para COMPLETED`
-    );
+    logger.logInfo(`Asset ${assetId} atualizado para COMPLETED`);
 }
 
 async function saveAudit(event) {
@@ -75,6 +75,10 @@ async function run() {
                 fromBeginning: true
             },
             {
+                topic: eventTypes.RESOURCE_ENCRYPT_REQUESTED,
+                fromBeginning: true
+            },
+            {
                 topic: eventTypes.RESOURCE_READY_FOR_STORAGE,
                 fromBeginning: true
             },
@@ -89,7 +93,7 @@ async function run() {
         ],
         "audit"
     );
-    logger.logInfo("Conectado e inscito nos eventos RESOURCE_UPLOAD_REQUESTED, RESOURCE_READY_FOR_STORAGE, RESOURCE_UPLOAD_COMPLETED e RESOURCE_UPLOAD_FAILED");
+    logger.logInfo("Conectado e inscito nos eventos RESOURCE_UPLOAD_REQUESTED, RESOURCE_ENCRYPT_REQUESTED, RESOURCE_READY_FOR_STORAGE, RESOURCE_UPLOAD_COMPLETED e RESOURCE_UPLOAD_FAILED");
 
     await kafkaConsumer.run({
         eachMessage:
@@ -101,15 +105,12 @@ async function run() {
                     if (event.eventType === eventTypes.RESOURCE_UPLOAD_COMPLETED) {
                         await updateCompletedStatus(event);
                     }
-                    logger.logInfo(`[audit] ${event.eventType} - ${event.requestId}`);
-                    await saveAudit(event);
+                    logger.logInfo(`${event.eventType} - ${event.requestId}`);
+                    //await saveAudit(event);
                 }
 
                 catch(error) {
-                    logger.logError(
-                        "[audit]",
-                        error.message
-                    );
+                    logger.logError(error.message);
                 }
             }
     });

@@ -8,4 +8,4 @@ COPY services/storage-service ./services/storage-service
 
 RUN npm install
 
-CMD ["node", "services/storage-service/consumer.js"]
+CMD ["node", "services/storage-service/storageConsumer.js"]

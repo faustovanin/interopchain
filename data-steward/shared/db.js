@@ -1,8 +1,8 @@
 const pool = require("./database");
 const config = require("./config");
-const { LogController, LogLevel_e } = require("../log/log-controller.js");
+const { LogController, LogLevel_e } = require("./log-controller.js");
 
-const logger = new LogController(config.logLevel === "all" ? LogLevel_e.All : LogLevel_e.Error);
+const logger = new LogController(config.logLevel === "all" ? LogLevel_e.All : LogLevel_e.Error, "db");
 
 async function getPatientKmsKey(patientIdentifier) {
     logger.logInfo(`Buscando KMS key para paciente: ${patientIdentifier}`);
@@ -64,31 +64,17 @@ async function insertPendingClinicalAsset(requestId, metadata, encrypted, patien
     return result.rows[0].id;
 }
 
-async function markClinicalAssetStored(assetId, cid) {
-    logger.logInfo(`Marcando clinical asset como armazenado para assetId: ${assetId}, cid: ${cid}`);
+async function markClinicalAssetStatusByRequestId(cid, requestId, status) {
+    logger.logInfo(`Marcando clinical asset como ${status} para requestId: ${requestId}, cid: ${cid}`);
     await pool.query(
         `
         UPDATE clinical_assets
         SET
             ipfs_cid = $1,
-            status = 'STORED'
-        WHERE id = $2
-        `,
-        [cid, assetId]
-    );
-}
-
-async function markClinicalAssetCompletedByRequestId(cid, requestId) {
-    logger.logInfo(`Marcando clinical asset como completo para requestId: ${requestId}, cid: ${cid}`);
-    await pool.query(
-        `
-        UPDATE clinical_assets
-        SET
-            ipfs_cid = $1,
-            status = 'completed'
+            status = $3
         WHERE request_id = $2
         `,
-        [cid, requestId]
+        [cid, requestId, status]
     );
 }
 
@@ -258,9 +244,8 @@ async function insertAuditLog(event, data) {
 module.exports = {
     getPatientKmsKey,
     insertPendingClinicalAsset,
-    markClinicalAssetStored,
-    markClinicalAssetCompletedByRequestId,
     getClinicalAssetById,
+    markClinicalAssetStatusByRequestId,
     updateClinicalAssetEncryptedKey,
     getAssetOwnerKeyId,
     updateClinicalAssetStatusById,
