@@ -1,0 +1,69 @@
+{
+  "resourceType": "Observation",
+  "id": "a96a4193-c359-437e-a39f-3f9667990c92",
+  "meta": {
+    "profile": [
+      "https://rnds-fhir.saude.gov.br/StructureDefinition/BRDiagnosticoLaboratorioClinico-3.2.1"
+    ]
+  },
+  "extension": [{
+    "url": "https://rnds-fhir.saude.gov.br/StructureDefinition/BRPatogeno",
+    "valueCodeableConcept": {
+      "coding": [{
+        "system": "https://rnds-fhir.saude.gov.br/CodeSystem/BRTerminologiaPatogeno",
+        "code": "01"
+      }]
+    }
+  }],
+  "status": "final",
+  "category": [{
+    "coding": [{
+      "system": "https://rnds-fhir.saude.gov.br/CodeSystem/BRSubgrupoTabelaSUS",
+      "code": "0212"
+    }]
+  }],
+  "code": {
+    "coding": [{
+      "system": "https://rnds-fhir.saude.gov.br/CodeSystem/BRNomeExameLOINC",
+      "code": "94309-2"
+    }]
+  },
+  "subject": {
+    "identifier": {
+      "system": "https://rnds-fhir.saude.gov.br/StructureDefinition/BRIndividuo-1.0",
+      "value": "898005900000823"
+    },
+    "reference":"Patient/patient001"
+  },
+  "effectiveDateTime": "2021-09-15T11:57:06-02:00",
+  "issued": "2021-09-15T12:57:06-02:00",
+  "performer": [
+    {
+      "identifier": {
+        "system": "https://rnds-fhir.saude.gov.br/StructureDefinition/BREstabelecimentoSaude-1.0",
+        "value": "034544015"
+      }
+    },
+    {
+      "identifier": {
+        "system": "https://rnds-fhir.saude.gov.br/StructureDefinition/BRPessoaJuridicaProfissionalLiberal-1.0",
+        "value": "00394544000185"
+      }
+    }
+  ],
+  "valueCodeableConcept": {
+    "coding": [{
+      "system": "https://rnds-fhir.saude.gov.br/CodeSystem/BRTipoResultadoDTNT",
+      "code": "2"
+    }]
+  },
+  "method": {
+    "text": "Diagnostico por hemograma."
+  },
+  "specimen": {
+    "reference": "urn:uuid:3b2d133f-6192-4f20-8a1c-8da16811c812"
+  },
+  "referenceRange": [{
+    "text": "Escala de -1 para +1."
+  }]
+}

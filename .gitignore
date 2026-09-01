@@ -1,6 +1,7 @@
 # Environment files (may contain secrets)
 .env
-*.env
+.env
+swarm.key
 
 # Node.js
 node_modules/
