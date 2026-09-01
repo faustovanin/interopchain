@@ -1,11 +1,17 @@
 const fs = require("fs");
 const path = require("path");
 
-const { consumer } = require("../../../shared/kafka");
-const { eventTypes } = require("../../../shared/contracts");
-const db = require("../../../shared/db");
+const { connectConsumer } = require("../../../shared/kafka.js");
+const { eventTypes } = require("../../../shared/contracts.js");
+const db = require("../../../shared/db.js");
 
-const OUTPUT = path.join(
+const config = require("../../../shared/config.js");
+const { LogController, LogLevel_e } = require("../../../shared/log-controller.js");
+const logger = new LogController(config.logLevel === "all" ? LogLevel_e.All : LogLevel_e.Error, "audit-service");
+logger.logInfo("Iniciando serviço de auditoria...");
+
+// Logs to audit.csv
+/*const OUTPUT = path.join(
     __dirname,
     "audit.csv"
 );
@@ -15,7 +21,7 @@ if (!fs.existsSync(OUTPUT)) {
         OUTPUT,
         "timestamp,eventType,requestId,assetId,resourceType,cid,status,ipfsUpload,payloadSize\n"
     );
-}
+}*/
 
 async function logAudit(event, data) {
     await db.insertAuditLog(event, data);
@@ -25,19 +31,17 @@ async function updateCompletedStatus(event) {
     const assetId = event.data?.assetId;
 
     if (!assetId) {
-        console.log("[audit] completed sem assetId");
+        logger.logInfo("Completed sem assetId");
         return;
     }
 
     await db.updateClinicalAssetStatusById(assetId, "COMPLETED");
 
-    console.log(
-        `[audit] asset ${assetId} atualizado para COMPLETED`
-    );
+    logger.logInfo(`Asset ${assetId} atualizado para COMPLETED`);
 }
 
 async function saveAudit(event) {
-    console.log("Salvando evento em arquivo")
+    logger.logInfo("Salvando evento em arquivo");
     const data = event.data || {};
 
     const line = [
@@ -50,39 +54,46 @@ async function saveAudit(event) {
         data
     ].join(",");
 
-    console.log(line);
+    logger.logInfo(line);
     fs.appendFileSync(
         OUTPUT,
         line + "\n"
     );
 
     await logAudit(event, data);
-    console.log("Salvo com requestId: " + event.requestId);
+    logger.logInfo("Salvo com requestId: " + event.requestId);
 }
 
 
 async function run() {
-    const kafkaConsumer = consumer("audit-service");
-
-    console.log("Conectando ao Kafka...")
-    await kafkaConsumer.connect();
-    await kafkaConsumer.subscribe({
-        topic: eventTypes.RESOURCE_UPLOAD_REQUESTED,
-        fromBeginning: true
-    });
-    await kafkaConsumer.subscribe({
-        topic: eventTypes.RESOURCE_READY_FOR_STORAGE,
-        fromBeginning: true
-    });
-    await kafkaConsumer.subscribe({
-        topic: eventTypes.RESOURCE_UPLOAD_COMPLETED,
-        fromBeginning: true
-    });
-    await kafkaConsumer.subscribe({
-        topic: eventTypes.RESOURCE_UPLOAD_FAILED,
-        fromBeginning: true
-    });
-    console.log("Conectado e inscito nos eventos RESOURCE_UPLOAD_REQUESTED, RESOURCE_READY_FOR_STORAGE, RESOURCE_UPLOAD_COMPLETED e RESOURCE_UPLOAD_FAILED");
+    logger.logInfo("Conectando Audit ao Kafka...");
+    const kafkaConsumer = await connectConsumer(
+        "audit-service",
+        [
+            {
+                topic: eventTypes.RESOURCE_UPLOAD_REQUESTED,
+                fromBeginning: true
+            },
+            {
+                topic: eventTypes.RESOURCE_ENCRYPT_REQUESTED,
+                fromBeginning: true
+            },
+            {
+                topic: eventTypes.RESOURCE_READY_FOR_STORAGE,
+                fromBeginning: true
+            },
+            {
+                topic: eventTypes.RESOURCE_UPLOAD_COMPLETED,
+                fromBeginning: true
+            },
+            {
+                topic: eventTypes.RESOURCE_UPLOAD_FAILED,
+                fromBeginning: true
+            }
+        ],
+        "audit"
+    );
+    logger.logInfo("Conectado e inscito nos eventos RESOURCE_UPLOAD_REQUESTED, RESOURCE_ENCRYPT_REQUESTED, RESOURCE_READY_FOR_STORAGE, RESOURCE_UPLOAD_COMPLETED e RESOURCE_UPLOAD_FAILED");
 
     await kafkaConsumer.run({
         eachMessage:
@@ -94,15 +105,12 @@ async function run() {
                     if (event.eventType === eventTypes.RESOURCE_UPLOAD_COMPLETED) {
                         await updateCompletedStatus(event);
                     }
-                    console.log(`[audit] ${event.eventType} - ${event.requestId}`);
-                    await saveAudit(event);
+                    logger.logInfo(`${event.eventType} - ${event.requestId}`);
+                    //await saveAudit(event);
                 }
 
                 catch(error) {
-                    console.error(
-                        "[audit]",
-                        error.message
-                    );
+                    logger.logError(error.message);
                 }
             }
     });

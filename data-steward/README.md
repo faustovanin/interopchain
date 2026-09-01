@@ -31,6 +31,19 @@ cp example.env .env
 
 Altere os valores restantes com as informações necessárias.
 
+### AWS KMS
+
+O serviço `metadata-crypto` usa AWS KMS para criptografar a chave AES e re-encriptar a chave para outro usuário. Garanta que o ambiente de execução tenha credenciais válidas e permissões para as seguintes ações KMS:
+
+- `kms:Encrypt`
+- `kms:Decrypt`
+- `kms:ReEncrypt*`
+
+O campo `patients.kms_key_id` deve armazenar um ARN ou alias KMS, por exemplo:
+
+- `arn:aws:kms:us-east-1:123456789012:key/11111111-2222-3333-4444-555555555555`
+- `alias/patient001`
+
 ## 3. Subir a rede distribuída
 
 ### Rodar em bash

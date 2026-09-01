@@ -1,0 +1,26 @@
+const SENSITIVE_METADATA_TERMS = [
+    "address",
+    "birthdate",
+    "communication",
+    "contact",
+    "deceased",
+    "email",
+    "emergencycontact",
+    "family",
+    "given",
+    "gender",
+    "identifier",
+    "maritalstatus",
+    "name",
+    "password",
+    "photo",
+    "phone",
+    "telecom",
+    "text",
+    "valueQuantity",
+    "value",
+];
+
+module.exports = {
+    SENSITIVE_METADATA_TERMS
+};

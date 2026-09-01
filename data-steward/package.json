@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "dependencies": {
+    "@aws-sdk/client-kms": "^3.409.0",
     "axios": "^1.7.0",
     "dotenv": "^16.4.0",
     "express": "^4.19.0",

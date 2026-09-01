@@ -19,6 +19,7 @@ module.exports = {
   buildRequestId,
   eventTypes: {
     RESOURCE_UPLOAD_REQUESTED: "resource.upload.requested",
+    RESOURCE_ENCRYPT_REQUESTED: "resource.encrypt.requested",
     RESOURCE_READY_FOR_STORAGE: "resource.ready.storage",
     RESOURCE_UPLOAD_COMPLETED: "resource.upload.completed",
     RESOURCE_UPLOAD_FAILED: "resource.upload.failed",
